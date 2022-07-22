@@ -5,49 +5,64 @@
 #
 # Written by Jadon Yack (jyack)
 
-import os
-import shutil
-import sys
-import time
+from os import scandir, getlogin, rename
+from os.path import splitext, exists, join
+from shutil import move as mv
+from time import sleep
+
 import logging
+
 from watchdog.observers import Observer
-from watchdog.events import LoggingEventHandler
+from watchdog.events import FileSystemEventHandler
 
-user = os.getlogin()
-src_dir = "/home/" + user + "/Downloads"
-img_dst = "/home/" + user + "/Pictures/DownloadedImages"
-vid_dst = "/home/" + user + "/Videos"
-doc_dst = "/home/" + user + "/Documents"
-iso_dst = "/home/" + user + "/ISOs"
+user = getlogin()
+src_dir = f"/home/{user}/Downloads"
+img_dst = f"/home/{user}/Pictures/DownloadedImages"
+vid_dst = f"/home/{user}/Videos"
+doc_dst = f"/home/{user}/Documents"
+iso_dst = f"/home/{user}/ISOs"
 
-def makeUniq(path, name):
-    
+def makeUniq(dst, name):
+    filename, extension = splitext(name)
+    counter = 1
+    # If the file exists, add the counter to the filename
+    while exists(f"{dst}/{name}"):
+        name = f"{filename}({counter}){extension}"
+        counter += 1
+
+    return name
 
 def move(entry, name, dst_dir):
-    name = makeUniq(entry.path, name)
-    
+    if exists(f"{dst_dir}/{name}"):
+        uniq_name = makeUniq(dst_dir, name)
+        old_name = join(dst_dir, name)
+        new_name = join(dst_dir, uniq_name)
+        rename(old_name, new_name)
+    mv(entry, dst_dir)
 
 class FileHandler(FileSystemEventHandler):
     def on_modified(self, event):
-        with os.scandir(src_dir) as entries:
+        with scandir(src_dir) as entries:
             for entry in entries:
                 name = entry.name
                 dst = src_dir
                 # If entry is an image
-                if name.endswith('.jpg') or name.endswith('.jpeg') 
-                or name.endswith('.png'):
+                if name.endswith('.jpg') or name.endswith('.jpeg') or name.endswith('.png'):
                     dst = img_dst
+                    move(entry, name, dst)
                 # If entry is a video
                 elif name.endswith('.mp4') or name.endswith('.mov'):
                     dst = vid_dst
+                    move(entry, name, dst)
                 # If entry is a document
                 elif name.endswith('.docx') or name.endswith('.pdf'):
                     dst = doc_dst
+                    move(entry, name, dst)
                 # If entry is an ISO file
                 elif name.endswith('.iso'):
                     dst = iso_dst
+                    move(entry, name, dst)
 
-                move(entry, name, dst)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO,
@@ -60,7 +75,7 @@ if __name__ == "__main__":
     observer.start()
     try:
         while True:
-            time.sleep(10)
+            sleep(10)
     except KeyboardInterrupt:
         observer.stop()
     observer.join()
