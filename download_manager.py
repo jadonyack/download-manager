@@ -6,7 +6,7 @@
 # Written by Jadon Yack (jyack)
 
 from os import scandir, getlogin, rename
-from os.path import splitext, exists, join
+from os.path import splitext, exists, join, isfile
 from shutil import move as mv
 from time import sleep
 
@@ -22,23 +22,24 @@ vid_dst = f"/home/{user}/Videos"
 doc_dst = f"/home/{user}/Documents"
 iso_dst = f"/home/{user}/ISOs"
 
-def makeUniq(dst, name):
+def makeUniq(file, dst, name):
     filename, extension = splitext(name)
     counter = 1
+    uniq_name = name
     # If the file exists, add the counter to the filename
     while exists(f"{dst}/{name}"):
-        name = f"{filename}({counter}){extension}"
+        uniq_name = f"{filename}({counter}){extension}"
         counter += 1
 
-    return name
+    return uniq_name
 
 def move(entry, name, dst_dir):
-    if exists(f"{dst_dir}/{name}"):
-        uniq_name = makeUniq(dst_dir, name)
-        old_name = join(dst_dir, name)
-        new_name = join(dst_dir, uniq_name)
-        rename(old_name, new_name)
-    mv(entry, dst_dir)
+    # Generate a unique file name and move the file to the destination 
+    # directory
+    uniq_name = makeUniq(entry, dst_dir, name)
+    # Check that entry is a file before moving it
+    if (isfile(entry.path)):
+        mv(entry.path, f"{dst_dir}/{uniq_name}")
 
 class FileHandler(FileSystemEventHandler):
     def on_modified(self, event):
